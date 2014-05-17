@@ -121,6 +121,16 @@ function nreverse(object lst)
   return ret
 end function
 
+function pairlis(object lst1, object lst2)
+  object ret = kNil
+  while TagEq(lst1, "cons") and TagEq(lst2, "cons") do
+    ret = makeCons(makeCons(Car(lst1), Car(lst2)), ret)
+    lst1 = Cdr(lst1)
+    lst2 = Cdr(lst2)
+  end while
+  return nreverse(ret)
+end function
+
 function isSpace(atom c)
   return c = ' ' or c = '\t' or c = '\r' or c = '\n'
 end function
@@ -267,6 +277,8 @@ function eval(object obj, object env)
       return eval(safeCar(safeCdr(safeCdr(args))), env)
     end if
     return eval(safeCar(safeCdr(args)), env)
+  elsif op = makeSym("lambda") then
+    return makeExpr(args, env)
   end if
   return apply(eval(op, env), evlis(args, env), env)
 end function
@@ -284,6 +296,15 @@ function evlis(object lst, object env)
   return nreverse(ret)
 end function
 
+function progn(object body, object env)
+  object ret = kNil
+  while TagEq(body, "cons") do
+    ret = eval(Car(body), env)
+    body = Cdr(body)
+  end while
+  return ret
+end function
+
 function apply(object fn, object args, object env)
   if TagEq(fn, "error") then
     return fn
@@ -291,6 +312,8 @@ function apply(object fn, object args, object env)
     return args
   elsif TagEq(fn, "subr") then
     return call_func(Data(fn), {args})
+  elsif TagEq(fn, "expr") then
+    return progn(Body(fn), makeCons(pairlis(Args(fn), args), Env(fn)))
   end if
   return makeError("noimpl")
 end function
