@@ -38,6 +38,20 @@ function Cdr(object obj)
   return DataN(obj, 2)
 end function
 
+function SetCar(object obj, object val)
+  object data = Data(obj)
+  data[1] = val
+  put(obj, "data", data)
+  return val
+end function
+
+function SetCdr(object obj, object val)
+  object data = Data(obj)
+  data[2] = val
+  put(obj, "data", data)
+  return val
+end function
+
 function Args(object obj)
   return DataN(obj, 1)
 end function
@@ -96,6 +110,17 @@ function makeExpr(object args, object env)
   return L("expr", {safeCar(args), safeCdr(args), env})
 end function
 
+function nreverse(object lst)
+  object ret = kNil
+  while TagEq(lst, "cons") do
+    object tmp = Cdr(lst)
+    SetCdr(lst, ret)
+    ret = lst
+    lst = tmp
+  end while
+  return ret
+end function
+
 function isSpace(atom c)
   return c = ' ' or c = '\t' or c = '\r' or c = '\n'
 end function
@@ -140,11 +165,64 @@ function read(sequence str)
   elsif str[1] = kRPar then
     return {makeError("invalid syntax: " & str), ""}
   elsif str[1] = kLPar then
-    return {makeError("noimpl"), ""}
+    return readList(str[2..$])
   elsif str[1] = kQuote then
-    return {makeError("noimpl"), ""}
+    sequence tmp = read(str[2..$])
+    return {makeCons(makeSym("quote"), makeCons(tmp[1], kNil)), tmp[2]}
   end if
   return readAtom(str)
+end function
+
+function readList(sequence str)
+  object ret = kNil
+  while 1 do
+    str = skipSpaces(str)
+    if length(str) = 0 then
+      return {makeError("unfinished parenthesis"), ""}
+    elsif str[1] = kRPar then
+      exit
+    end if
+    sequence tmp = read(str)
+    object elm = tmp[1]
+    sequence next = tmp[2]
+    if TagEq(elm, "error") then
+      return {elm, ""}
+    end if
+    ret = makeCons(elm, ret)
+    str = next
+  end while
+  return {nreverse(ret), str[2..$]}
+end function
+
+function printObj(object obj)
+  if TagEq(obj, "num") or TagEq(obj, "sym") or TagEq(obj, "nil") then
+    return to_string(Data(obj))
+  elsif TagEq(obj, "error") then
+    return "<error: " & Data(obj) & ">"
+  elsif TagEq(obj, "cons") then
+    return printList(obj)
+  elsif TagEq(obj, "subr") or TagEq(obj, "expr") then
+    return "<" & Tag(obj) & ">"
+  end if
+  return "<unknown>"
+end function
+
+function printList(object obj)
+  sequence ret = ""
+  integer first = 1
+  while TagEq(obj, "cons") do
+    if first then
+      first = 0
+    else
+      ret = ret & " "
+    end if
+    ret = ret & printObj(Car(obj))
+    obj = Cdr(obj)
+  end while
+  if TagEq(obj, "nil") then
+    return "(" & ret & ")"
+  end if
+  return "(" & ret & " . " & printObj(obj) & ")"
 end function
 
 puts(STDOUT, "> ")
@@ -154,7 +232,7 @@ while 1 do
     exit
   end if
   sequence tmp = read(line)
-  puts(STDOUT, to_string(Data(tmp[1])) & "\n")
+  puts(STDOUT, printObj(tmp[1]) & "\n")
   puts(STDOUT, "> ")
   line = gets(STDIN)
 end while
