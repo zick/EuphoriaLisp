@@ -102,7 +102,7 @@ function makeCons(object a, object d)
   return L("cons", {a, d})
 end function
 
-function makeSubr(sequence fn)
+function makeSubr(integer fn)
   return L("subr", fn)
 end function
 
@@ -256,9 +256,60 @@ function eval(object obj, object env)
     end if
     return Cdr(bind)
   end if
+
+  object op = safeCar(obj)
+  object args = safeCdr(obj)
+  if op = makeSym("quote") then
+    return safeCar(args)
+  elsif op = makeSym("if") then
+    object cond = eval(safeCar(args), env)
+    if cond = kNil then
+      return eval(safeCar(safeCdr(safeCdr(args))), env)
+    end if
+    return eval(safeCar(safeCdr(args)), env)
+  end if
+  return apply(eval(op, env), evlis(args, env), env)
+end function
+
+function evlis(object lst, object env)
+  object ret = kNil
+  while TagEq(lst, "cons") do
+    object elm = eval(Car(lst), env)
+    if TagEq(elm, "error") then
+      return elm
+    end if
+    ret = makeCons(elm, ret)
+    lst = Cdr(lst)
+  end while
+  return nreverse(ret)
+end function
+
+function apply(object fn, object args, object env)
+  if TagEq(fn, "error") then
+    return fn
+  elsif TagEq(args, "error") then
+    return args
+  elsif TagEq(fn, "subr") then
+    return call_func(Data(fn), {args})
+  end if
   return makeError("noimpl")
 end function
 
+function subrCar(object args)
+  return safeCar(safeCar(args))
+end function
+
+function subrCdr(object args)
+  return safeCdr(safeCar(args))
+end function
+
+function subrCons(object args)
+  return makeCons(safeCar(args), safeCar(safeCdr(args)))
+end function
+
+addToEnv(makeSym("car"), makeSubr(routine_id("subrCar")), g_env)
+addToEnv(makeSym("cdr"), makeSubr(routine_id("subrCdr")), g_env)
+addToEnv(makeSym("cons"), makeSubr(routine_id("subrCons")), g_env)
 addToEnv(makeSym("t"), makeSym("t"), g_env)
 
 puts(STDOUT, "> ")
