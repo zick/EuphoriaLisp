@@ -225,6 +225,42 @@ function printList(object obj)
   return "(" & ret & " . " & printObj(obj) & ")"
 end function
 
+function findVar(object sym, object env)
+  while TagEq(env, "cons") do
+    object alist = Car(env)
+    while TagEq(alist, "cons") do
+      if Car(Car(alist)) = sym then
+        return Car(alist)
+      end if
+      alist = Cdr(alist)
+    end while
+    env = Cdr(env)
+  end while
+  return kNil
+end function
+
+object g_env = makeCons(kNil, kNil)
+
+function addToEnv(object sym, object val, object env)
+  SetCar(env, makeCons(makeCons(sym, val), Car(env)))
+  return val
+end function
+
+function eval(object obj, object env)
+  if TagEq(obj, "nil") or TagEq(obj, "num") or TagEq(obj, "error") then
+    return obj
+  elsif TagEq(obj, "sym") then
+    object bind = findVar(obj, env)
+    if bind = kNil then
+      return makeError(Data(obj) & " has no value")
+    end if
+    return Cdr(bind)
+  end if
+  return makeError("noimpl")
+end function
+
+addToEnv(makeSym("t"), makeSym("t"), g_env)
+
 puts(STDOUT, "> ")
 object line = gets(STDIN)
 while 1 do
@@ -232,7 +268,7 @@ while 1 do
     exit
   end if
   sequence tmp = read(line)
-  puts(STDOUT, printObj(tmp[1]) & "\n")
+  puts(STDOUT, printObj(eval(tmp[1], g_env)) & "\n")
   puts(STDOUT, "> ")
   line = gets(STDIN)
 end while
