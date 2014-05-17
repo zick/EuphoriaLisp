@@ -345,9 +345,111 @@ function subrCons(object args)
   return makeCons(safeCar(args), safeCar(safeCdr(args)))
 end function
 
+function subrEq(object args)
+  object x = safeCar(args)
+  object y = safeCar(safeCdr(args))
+  if TagEq(x, "num") and TagEq(y, "num") then
+    if Data(x) = Data(y) then
+      return makeSym("t")
+    end if
+    return kNil
+  elsif x = y then
+    return makeSym("t")
+  end if
+  return kNil
+end function
+
+function subrAtom(object args)
+  if TagEq(safeCar(args), "cons") then
+    return kNil
+  end if
+  return makeSym("t")
+end function
+
+function subrNumberp(object args)
+  if TagEq(safeCar(args), "num") then
+    return makeSym("t")
+  end if
+  return kNil
+end function
+
+function subrSymbolp(object args)
+  if TagEq(safeCar(args), "sym") then
+    return makeSym("t")
+  end if
+  return kNil
+end function
+
+function subrAddOrMul(integer fn, integer init_val, object args)
+  integer ret = init_val
+  while TagEq(args, "cons") do
+    if not TagEq(Car(args), "num") then
+      return makeError("wrong type")
+    end if
+    ret = call_func(fn, {ret, Data(Car(args))})
+    args = Cdr(args)
+  end while
+  return makeNum(ret)
+end function
+
+function Add(integer x, integer y)
+  return x + y
+end function
+function subrAdd(object args)
+  return subrAddOrMul(routine_id("Add"), 0, args)
+end function
+
+function Mul(integer x, integer y)
+  return x * y
+end function
+function subrMul(object args)
+  return subrAddOrMul(routine_id("Mul"), 1, args)
+end function
+
+function subrSubOrDivOrMod(integer fn, object args)
+  object x = safeCar(args)
+  object y = safeCar(safeCdr(args))
+  if (not TagEq(x, "num")) or (not TagEq(y, "num")) then
+    return makeError("wrong type")
+  end if
+  return makeNum(to_integer(call_func(fn, {Data(x), Data(y)})))
+end function
+
+function Sub(integer x, integer y)
+  return x - y
+end function
+function subrSub(object args)
+  return subrSubOrDivOrMod(routine_id("Sub"), args)
+end function
+
+function Div(integer x, integer y)
+  return x / y
+end function
+function subrDiv(object args)
+  return subrSubOrDivOrMod(routine_id("Div"), args)
+end function
+
+function Mod(integer x, integer y)
+  -- I couldn't find mod operator in Euphoria manual...
+  integer z = to_integer(x / y)
+  return x - y * z
+end function
+function subrMod(object args)
+  return subrSubOrDivOrMod(routine_id("Mod"), args)
+end function
+
 addToEnv(makeSym("car"), makeSubr(routine_id("subrCar")), g_env)
 addToEnv(makeSym("cdr"), makeSubr(routine_id("subrCdr")), g_env)
 addToEnv(makeSym("cons"), makeSubr(routine_id("subrCons")), g_env)
+addToEnv(makeSym("eq"), makeSubr(routine_id("subrEq")), g_env)
+addToEnv(makeSym("atom"), makeSubr(routine_id("subrAtom")), g_env)
+addToEnv(makeSym("numberp"), makeSubr(routine_id("subrNumberp")), g_env)
+addToEnv(makeSym("symbolp"), makeSubr(routine_id("subrSymbolp")), g_env)
+addToEnv(makeSym("+"), makeSubr(routine_id("subrAdd")), g_env)
+addToEnv(makeSym("*"), makeSubr(routine_id("subrMul")), g_env)
+addToEnv(makeSym("-"), makeSubr(routine_id("subrSub")), g_env)
+addToEnv(makeSym("/"), makeSubr(routine_id("subrDiv")), g_env)
+addToEnv(makeSym("mod"), makeSubr(routine_id("subrMod")), g_env)
 addToEnv(makeSym("t"), makeSym("t"), g_env)
 
 puts(STDOUT, "> ")
