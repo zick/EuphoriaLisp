@@ -284,6 +284,16 @@ function eval(object obj, object env)
     object sym = safeCar(args)
     addToEnv(sym, expr, g_env)
     return sym
+  elsif op = makeSym("setq") then
+    object val = eval(safeCar(safeCdr(args)), env)
+    object sym = safeCar(args)
+    object bind = findVar(sym, env)
+    if bind = kNil then
+      addToEnv(sym, val, g_env)
+    else
+      SetCdr(bind, val)
+    end if
+    return val
   end if
   return apply(eval(op, env), evlis(args, env), env)
 end function
