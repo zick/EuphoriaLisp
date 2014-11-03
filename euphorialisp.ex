@@ -94,6 +94,13 @@ function makeSym(sequence str)
   return get(sym_table, str)
 end function
 
+object sym_t = makeSym("t")
+object sym_quote = makeSym("quote")
+object sym_if = makeSym("if")
+object sym_lambda = makeSym("lambda")
+object sym_defun = makeSym("defun")
+object sym_setq = makeSym("setq")
+
 function makeNum(integer num)
   return L("num", num)
 end function
@@ -178,7 +185,7 @@ function read(sequence str)
     return readList(str[2..$])
   elsif str[1] = kQuote then
     sequence tmp = read(str[2..$])
-    return {makeCons(makeSym("quote"), makeCons(tmp[1], kNil)), tmp[2]}
+    return {makeCons(sym_quote, makeCons(tmp[1], kNil)), tmp[2]}
   end if
   return readAtom(str)
 end function
@@ -269,22 +276,22 @@ function eval(object obj, object env)
 
   object op = safeCar(obj)
   object args = safeCdr(obj)
-  if op = makeSym("quote") then
+  if op = sym_quote then
     return safeCar(args)
-  elsif op = makeSym("if") then
+  elsif op = sym_if then
     object cond = eval(safeCar(args), env)
     if cond = kNil then
       return eval(safeCar(safeCdr(safeCdr(args))), env)
     end if
     return eval(safeCar(safeCdr(args)), env)
-  elsif op = makeSym("lambda") then
+  elsif op = sym_lambda then
     return makeExpr(args, env)
-  elsif op = makeSym("defun") then
+  elsif op = sym_defun then
     object expr = makeExpr(safeCdr(args), env)
     object sym = safeCar(args)
     addToEnv(sym, expr, g_env)
     return sym
-  elsif op = makeSym("setq") then
+  elsif op = sym_setq then
     object val = eval(safeCar(safeCdr(args)), env)
     object sym = safeCar(args)
     object bind = findVar(sym, env)
@@ -350,11 +357,11 @@ function subrEq(object args)
   object y = safeCar(safeCdr(args))
   if TagEq(x, "num") and TagEq(y, "num") then
     if Data(x) = Data(y) then
-      return makeSym("t")
+      return sym_t
     end if
     return kNil
   elsif x = y then
-    return makeSym("t")
+    return sym_t
   end if
   return kNil
 end function
@@ -363,19 +370,19 @@ function subrAtom(object args)
   if TagEq(safeCar(args), "cons") then
     return kNil
   end if
-  return makeSym("t")
+  return sym_t
 end function
 
 function subrNumberp(object args)
   if TagEq(safeCar(args), "num") then
-    return makeSym("t")
+    return sym_t
   end if
   return kNil
 end function
 
 function subrSymbolp(object args)
   if TagEq(safeCar(args), "sym") then
-    return makeSym("t")
+    return sym_t
   end if
   return kNil
 end function
@@ -450,7 +457,7 @@ addToEnv(makeSym("*"), makeSubr(routine_id("subrMul")), g_env)
 addToEnv(makeSym("-"), makeSubr(routine_id("subrSub")), g_env)
 addToEnv(makeSym("/"), makeSubr(routine_id("subrDiv")), g_env)
 addToEnv(makeSym("mod"), makeSubr(routine_id("subrMod")), g_env)
-addToEnv(makeSym("t"), makeSym("t"), g_env)
+addToEnv(sym_t, sym_t, g_env)
 
 puts(STDOUT, "> ")
 object line = gets(STDIN)
