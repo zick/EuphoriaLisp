@@ -100,6 +100,9 @@ object sym_if = makeSym("if")
 object sym_lambda = makeSym("lambda")
 object sym_defun = makeSym("defun")
 object sym_setq = makeSym("setq")
+object sym_loop = makeSym("loop")
+object sym_return = makeSym("return")
+object loop_val = kNil
 
 function makeNum(integer num)
   return L("num", num)
@@ -280,7 +283,9 @@ function eval(object obj, object env)
     return safeCar(args)
   elsif op = sym_if then
     object cond = eval(safeCar(args), env)
-    if cond = kNil then
+    if TagEq(cond, "error") then
+      return cond
+    elsif cond = kNil then
       return eval(safeCar(safeCdr(safeCdr(args))), env)
     end if
     return eval(safeCar(safeCdr(args)), env)
@@ -293,6 +298,9 @@ function eval(object obj, object env)
     return sym
   elsif op = sym_setq then
     object val = eval(safeCar(safeCdr(args)), env)
+    if TagEq(val, "error") then
+      return val
+    end if
     object sym = safeCar(args)
     object bind = findVar(sym, env)
     if bind = kNil then
@@ -301,6 +309,11 @@ function eval(object obj, object env)
       SetCdr(bind, val)
     end if
     return val
+  elsif op = sym_loop then
+    return loop1(args, env)
+  elsif op = sym_return then
+    loop_val = eval(safeCar(args), env)
+    return makeError("")
   end if
   return apply(eval(op, env), evlis(args, env), env)
 end function
@@ -322,9 +335,24 @@ function progn(object body, object env)
   object ret = kNil
   while TagEq(body, "cons") do
     ret = eval(Car(body), env)
+    if TagEq(ret, "error") then
+      return ret
+    end if
     body = Cdr(body)
   end while
   return ret
+end function
+
+function loop1(object body, object env)
+  while 1 do
+    object ret = progn(body, env)
+    if TagEq(ret, "error") then
+      if equal(Data(ret), "") then
+        return loop_val
+      end if
+      return ret
+    end if
+  end while
 end function
 
 function apply(object fn, object args, object env)
